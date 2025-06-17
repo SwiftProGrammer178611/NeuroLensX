@@ -23,7 +23,8 @@ import ForceGraph2D from 'react-force-graph-2d';
 import * as d3 from 'd3';
 
 // Define the base URL for your FastAPI backend
-const API_BASE_URL = 'http://localhost:8000'; // Assuming your FastAPI runs on port 8000
+const API_BASE_URL = 'https://googlehackathonproj-gpm3zc4k7-moinsh2008-9140s-projects.vercel.app/'; // Assuming your FastAPI runs on port 8000
+
 
 const preloadedModels = {
   'bert-base-uncased': 'BERT Base Uncased',
@@ -32,6 +33,7 @@ const preloadedModels = {
 };
 
 const AnalyzePage = () => {
+  const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [selectedModel, setSelectedModel] = useState('bert-base-uncased');
   const [query, setQuery] = useState('She is a doctor.');
   const [conceptLibrary, setConceptLibrary] = useState('');
@@ -44,6 +46,17 @@ const AnalyzePage = () => {
     useState('Top by Activation');
   const [selectedBiases, setSelectedBiases] = useState<string[]>([]);
   const [ragInput, setRagInput] = useState('');
+  useEffect(() => {
+    if (analysisResults) {
+      const summary = JSON.stringify({
+        cluster_labels: analysisResults.cluster_labels,
+        cluster_sentences: analysisResults.cluster_sentences,
+        top_neurons: analysisResults.top_neurons,
+      }, null, 2);
+      setRagInput(summary);
+    }
+  }, [analysisResults]);
+  
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
@@ -59,7 +72,7 @@ const AnalyzePage = () => {
   });
 
   // State for analysis results
-  const [analysisResults, setAnalysisResults] = useState<any>(null);
+  
   const [ragResult, setRagResult] = useState<any>(null);
   const [biasAnalysisResult, setBiasAnalysisResult] = useState<any>(null);
   const [biasScoringResult, setBiasScoringResult] = useState<any>(null);
@@ -70,14 +83,16 @@ const AnalyzePage = () => {
   const [tableSortDirection, setTableSortDirection] = useState('desc');
   const [tablePageSize, setTablePageSize] = useState(20);
   const [tableCurrentPage, setTableCurrentPage] = useState(0);
-
+  const handleNodeClick = (node: any) => {
+    console.log("Selected node:", node); // Debug log
+    setSelectedNeuron(node);
+  };
   // Refs for interactive components
   const graphRef = useRef<any>(null);
 
   useEffect(() => {
     // Load concept library and available models on component mount
     fetchConceptLibrary();
-    fetchRecommendations(query); // Fetch recommendations based on initial query
   }, []);
 
   useEffect(() => {
@@ -174,6 +189,7 @@ const AnalyzePage = () => {
           selected_cavs: selectedConcepts, // Use selected concepts for CAVs
           max_nodes_graph: maxNodes,
           graph_strategy: nodeSamplingStrategy,
+          model_name: selectedModel, // ✅ ADD THIS LINE
         }),
       });
 
@@ -231,6 +247,10 @@ const AnalyzePage = () => {
   
   // API Call: RAG Generate
   const handleRagGenerate = async () => {
+    if (!analysisResults) {
+      alert("Please analyze the model first.");
+      return;
+    }
     if (!ragInput || !query) {
       alert('Please provide both RAG Input and a Query.');
       return;
@@ -348,28 +368,45 @@ const AnalyzePage = () => {
   };
 
   // API Call: Fetch Recommendations
-  const fetchRecommendations = async (currentQuery: string) => {
+  const fetchRecommendations = async (query: string) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/recommendations/${encodeURIComponent(currentQuery)}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("Recommendations:", data); // Debug log
-      setRecommendations(data.recommendations || []);
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
+      const res = await fetch(`${API_BASE_URL}/recommendations/${encodeURIComponent(query)}`);
+      const data = await res.json();
+  
+      const aiRecs = data.recommendations.map((line: any) => {
+        if (typeof line === 'string') {
+          return {
+            title: line,
+            description: '',
+            icon: 'Lightbulb',
+            priority: 'Medium',
+            details: [],
+          };
+        } else if (typeof line === 'object' && line.title) {
+          return {
+            ...line,
+            title: String(line.title), // Force string
+            description: String(line.description || ''),
+          };
+        } else {
+          return {
+            title: 'Unknown Recommendation',
+            description: '',
+            icon: 'Lightbulb',
+            priority: 'Medium',
+            details: [],
+          };
+        }
+      });
+      
+  
+      setRecommendations(aiRecs);
+    } catch (err) {
+      console.error("Failed to fetch recommendations:", err);
     }
   };
-
-  // Handle neuron selection in the interactive graph
-  const handleNodeClick = (node: any) => {
-    console.log("Selected node:", node); // Debug log
-    setSelectedNeuron(node);
-  };
-
+  
+  
   // Handle neuron table filtering and sorting
   const getFilteredAndSortedNeurons = () => {
     if (!analysisResults?.activation_table) return [];
@@ -783,7 +820,7 @@ const AnalyzePage = () => {
 
                   <button
                     onClick={handleRagGenerate}
-                    disabled={isProcessing || !ragInput || !query}
+                    disabled={!analysisResults || isProcessing || !ragInput}
                     className={`w-full py-2 rounded-lg font-semibold transition-opacity ${
                       isProcessing || !ragInput || !query
                         ? 'bg-gray-600 cursor-not-allowed'
@@ -1689,7 +1726,10 @@ const AnalyzePage = () => {
                       <div className="space-y-3">
                         {biasAnalysisResult.recommendations.map((rec: any, index: number) => (
                           <div key={index} className="p-3 bg-[#0D0E23] rounded-lg border border-[#1E184A]">
-                            <h5 className="font-medium text-[#FFD700]">{rec.title || 'Recommendation'}</h5>
+                            <h3 className="text-lg font-medium text-[#FFD700]">
+                              {typeof rec.title === 'string' ? rec.title : 'Recommendation'}
+                            </h3>
+
                             <p className="text-gray-300 mt-1">{rec.description || 'No description available'}</p>
                             {rec.priority && (
                               <p className="text-xs text-gray-500 mt-1">Priority: {rec.priority}</p>
@@ -1922,7 +1962,10 @@ const AnalyzePage = () => {
                     </h3>
                     <p
                       className="text-gray-300 mt-1"
-                      dangerouslySetInnerHTML={{ __html: rec.description || 'No description available' }}
+                      dangerouslySetInnerHTML={{
+                        __html: typeof rec.description === 'string' ? rec.description : 'Invalid description'
+                      }}
+                      
                     ></p>
                     {hasData(rec, 'details') && rec.details.length > 0 && (
                       <ul className="list-disc list-inside text-gray-400 mt-2">
@@ -1942,10 +1985,9 @@ const AnalyzePage = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-400 text-center">
-                  No recommendations available yet. Run an analysis to get
-                  tailored suggestions.
-                </p>
+                <p className="text-sm text-gray-400">
+                 <h1>nothing</h1>
+                </p>  
               )}
             </div>
           )}
