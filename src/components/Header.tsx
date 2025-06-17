@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -42,7 +43,8 @@ const Header = () => {
           <a href="#features" className="hover:text-[#4DE8ED] transition-colors">Features</a>
           <a href="#demo" className="hover:text-[#4DE8ED] transition-colors">Demo</a>
           <a href="#tech-stack" className="hover:text-[#4DE8ED] transition-colors">Technology</a>
-          <a href="/analyze" className="hover:text-[#4DE8ED] transition-colors">Analyze</a>
+          <Link to="/analyze" className="hover:text-[#4DE8ED] transition-colors">Analyze</Link>
+
         </nav>
 
         <div className="hidden md:flex gap-4">
@@ -75,7 +77,8 @@ const Header = () => {
           <a href="#features" className="py-2 hover:text-[#4DE8ED]" onClick={toggleMenu}>Features</a>
           <a href="#demo" className="py-2 hover:text-[#4DE8ED]" onClick={toggleMenu}>Demo</a>
           <a href="#tech-stack" className="py-2 hover:text-[#4DE8ED]" onClick={toggleMenu}>Technology</a>
-          <a href="/analyze" className="py-2 hover:text-[#4DE8ED]" onClick={toggleMenu}>Analyze</a>
+          <Link to="/analyze" className="py-2 hover:text-[#4DE8ED]" onClick={toggleMenu}>Analyze</Link>
+
           <div className="flex flex-col gap-3 pt-3">
             <a href="#explore" className="py-2 text-center rounded-lg border border-[#4DE8ED] text-[#4DE8ED]">
               Explore a Model
